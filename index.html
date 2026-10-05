@@ -351,6 +351,97 @@
       color: var(--teal-dark);
     }
 
+    .quiz-controls {
+      display: grid;
+      justify-items: center;
+      gap: 12px;
+      margin-top: 38px;
+      padding: 30px;
+      border: 1px solid #d5e6e4;
+      border-radius: 26px;
+      background: var(--white);
+      text-align: center;
+    }
+
+    .quiz-progress,
+    .quiz-result {
+      margin: 0;
+      color: var(--teal-dark);
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    .quiz-result {
+      color: var(--coral);
+      font-size: 26px;
+    }
+
+    .quiz-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 6px;
+    }
+
+    .quiz-button {
+      min-height: 52px;
+      padding: 12px 24px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--coral);
+      color: var(--white);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 900;
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+
+    .quiz-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+    }
+
+    .quiz-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .quiz-button-secondary {
+      background: var(--teal);
+    }
+
+    .question-result {
+      margin: 16px 0 0;
+      font-weight: 900;
+    }
+
+    .sentence-card.is-correct,
+    .drill-card.is-correct {
+      border-color: #72b79b;
+    }
+
+    .sentence-card.is-incorrect,
+    .drill-card.is-incorrect {
+      border-color: #e99aa6;
+    }
+
+    .answer-option.is-answer-correct {
+      border-color: #72b79b;
+      background: #edf8f2;
+    }
+
+    .question-result.is-correct {
+      color: #28744f;
+    }
+
+    .question-result.is-incorrect {
+      color: #b5485a;
+    }
+
+    .quiz-controls [hidden] {
+      display: none;
+    }
+
     .sentence-english {
       margin: 0;
       color: var(--teal-dark);
@@ -740,6 +831,15 @@
       </div>
       <ol class="drill-list" id="drill-list"></ol>
     </section>
+
+    <section class="quiz-controls" aria-label="Nộp bài và kết quả">
+      <p class="quiz-progress" id="quiz-progress" aria-live="polite">Đã hoàn thành 0/30 câu.</p>
+      <p class="quiz-result" id="quiz-result" aria-live="polite" hidden></p>
+      <div class="quiz-actions">
+        <button class="quiz-button" id="submit-quiz" type="button" disabled>Nộp bài và chấm điểm</button>
+        <button class="quiz-button quiz-button-secondary" id="retry-quiz" type="button" hidden>Làm lại và xáo trộn câu hỏi</button>
+      </div>
+    </section>
   </main>
 
   <footer>Basic English · Lesson 2: Belief and Disbelief</footer>
@@ -767,8 +867,16 @@
       question.querySelector(".sentence-vietnamese").textContent
     );
     const letters = ["A", "B", "C", "D"];
+    const sentenceList = document.querySelector(".sentence-list");
+    const quizProgress = document.querySelector("#quiz-progress");
+    const quizResult = document.querySelector("#quiz-result");
+    const submitButton = document.querySelector("#submit-quiz");
+    const retryButton = document.querySelector("#retry-quiz");
+    const totalQuestions = 30;
+    let quizSubmitted = false;
 
     questions.forEach((question, questionIndex) => {
+      question.dataset.questionId = String(questionIndex);
       const options = document.createElement("fieldset");
       options.className = "answer-options";
       options.setAttribute("aria-label", `Lựa chọn cho câu ${questionIndex + 1}`);
@@ -781,6 +889,7 @@
         input.type = "radio";
         input.name = `question-${questionIndex + 1}`;
         input.value = letters[optionIndex];
+        input.dataset.correct = String(translationIndex === questionIndex);
 
         const letter = document.createElement("span");
         letter.className = "answer-letter";
@@ -800,7 +909,10 @@
         options.append(label);
       });
 
-      question.querySelector("div").append(options);
+      const result = document.createElement("p");
+      result.className = "question-result";
+      result.hidden = true;
+      question.querySelector("div").append(options, result);
     });
 
     document.body.classList.add("has-choices");
@@ -963,6 +1075,7 @@
     drills.forEach((drill, drillIndex) => {
       const item = document.createElement("li");
       item.className = "drill-card";
+      item.dataset.drillId = String(drillIndex);
 
       const number = document.createElement("div");
       number.className = "drill-number";
@@ -979,6 +1092,7 @@
       answer.setAttribute("role", "group");
       answer.setAttribute("aria-label", `Câu trả lời ${drillIndex + 1}`);
       answer.setAttribute("aria-live", "polite");
+      item.dataset.expectedAnswer = drill.sentence;
 
       const translation = document.createElement("p");
       translation.className = "drill-translation";
@@ -987,6 +1101,9 @@
       const substitutions = document.createElement("ul");
       substitutions.className = "substitutions";
       substitutions.setAttribute("aria-label", "Từ thay thế");
+      const result = document.createElement("p");
+      result.className = "question-result";
+      result.hidden = true;
 
       drill.substitutions.forEach(([phrase, meaning]) => {
         const substitution = document.createElement("li");
@@ -1047,6 +1164,7 @@
           event.dataTransfer.effectAllowed = "move";
         });
         answer.append(answerToken);
+        updateProgress();
       }
 
       function returnWord(wordId) {
@@ -1057,6 +1175,7 @@
           answerToken.remove();
           sourceToken.classList.remove("is-used");
           sourceToken.setAttribute("aria-pressed", "false");
+          updateProgress();
         }
       }
 
@@ -1087,9 +1206,157 @@
         });
       });
 
-      item.append(number, bank, answer, translation, substitutions);
+      item.append(number, bank, answer, translation, substitutions, result);
       drillList.append(item);
     });
+
+    const drillCards = Array.from(drillList.querySelectorAll(".drill-card"));
+
+    function shuffle(items) {
+      const shuffled = [...items];
+
+      for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        const swapIndex = Math.floor(Math.random() * (index + 1));
+        [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+      }
+
+      if (shuffled.length > 1 && shuffled.every((item, index) => item === items[index])) {
+        shuffled.push(shuffled.shift());
+      }
+
+      return shuffled;
+    }
+
+    function updateProgress() {
+      if (quizSubmitted) {
+        return;
+      }
+
+      const answeredMultipleChoice = questions.filter((question) =>
+        question.querySelector('input[type="radio"]:checked')
+      ).length;
+      const answeredDrills = drillCards.filter((card) =>
+        card.querySelectorAll(".word-bank .word-chip:not(.is-used)").length === 0
+      ).length;
+      const answered = answeredMultipleChoice + answeredDrills;
+
+      quizProgress.textContent = `Đã hoàn thành ${answered}/${totalQuestions} câu.`;
+      submitButton.disabled = answered !== totalQuestions;
+    }
+
+    function setQuestionResult(question, correct, message) {
+      question.classList.toggle("is-correct", correct);
+      question.classList.toggle("is-incorrect", !correct);
+
+      const result = question.querySelector(".question-result");
+      result.textContent = message;
+      result.classList.toggle("is-correct", correct);
+      result.classList.toggle("is-incorrect", !correct);
+      result.hidden = false;
+    }
+
+    function submitQuiz() {
+      if (quizSubmitted || submitButton.disabled) {
+        return;
+      }
+
+      let score = 0;
+
+      questions.forEach((question) => {
+        const selected = question.querySelector('input[type="radio"]:checked');
+        const correct = selected.dataset.correct === "true";
+        score += Number(correct);
+
+        question.querySelectorAll(".answer-option").forEach((option) => {
+          const input = option.querySelector("input");
+          option.classList.toggle("is-answer-correct", input.dataset.correct === "true");
+          input.disabled = true;
+        });
+
+        setQuestionResult(question, correct, correct ? "Chính xác" : "Chưa chính xác");
+      });
+
+      drillCards.forEach((card) => {
+        const answer = card.querySelector(".answer-zone");
+        const actual = Array.from(answer.querySelectorAll(".word-chip"), (word) => word.textContent).join(" ");
+        const correct = actual === card.dataset.expectedAnswer;
+        score += Number(correct);
+        card.querySelectorAll(".word-chip").forEach((word) => {
+          word.draggable = false;
+          word.disabled = true;
+        });
+        setQuestionResult(card, correct, correct ? "Chính xác" : "Chưa chính xác");
+      });
+
+      quizSubmitted = true;
+      quizProgress.textContent = "Đã hoàn thành đủ 30/30 câu.";
+      quizResult.textContent = `Kết quả: ${score}/30`;
+      quizResult.hidden = false;
+      submitButton.disabled = true;
+      retryButton.hidden = false;
+    }
+
+    function retryQuiz() {
+      quizSubmitted = false;
+      quizResult.hidden = true;
+      quizResult.textContent = "";
+      retryButton.hidden = true;
+
+      shuffle(questions).forEach((question, index) => {
+        sentenceList.append(question);
+        question.querySelector(".sentence-number").textContent = String(index + 1).padStart(2, "0");
+
+        const options = question.querySelector(".answer-options");
+        options.setAttribute("aria-label", `Lựa chọn cho câu ${index + 1}`);
+        shuffle(Array.from(options.children)).forEach((option, optionIndex) => {
+          options.append(option);
+          const input = option.querySelector("input");
+          input.checked = false;
+          input.disabled = false;
+          option.querySelector(".answer-letter").textContent = letters[optionIndex];
+          option.classList.remove("is-selected", "is-answer-correct");
+        });
+
+        question.classList.remove("is-correct", "is-incorrect");
+        const result = question.querySelector(".question-result");
+        result.hidden = true;
+        result.textContent = "";
+      });
+
+      shuffle(drillCards).forEach((card, index) => {
+        drillList.append(card);
+        card.querySelector(".drill-number").textContent = String(index + 1).padStart(2, "0");
+
+        const bank = card.querySelector(".word-bank");
+        const answer = card.querySelector(".answer-zone");
+        answer.replaceChildren();
+
+        const wordButtons = Array.from(bank.querySelectorAll(".word-chip"));
+        wordButtons.forEach((word) => {
+          word.classList.remove("is-used", "is-in-answer");
+          word.disabled = false;
+          word.draggable = true;
+          word.setAttribute("aria-pressed", "false");
+          word.setAttribute("aria-label", `${word.textContent}. Nhấp để chuyển từ`);
+        });
+        shuffle(wordButtons).forEach((word) => bank.append(word));
+
+        card.classList.remove("is-correct", "is-incorrect");
+        const result = card.querySelector(".question-result");
+        result.hidden = true;
+        result.textContent = "";
+      });
+
+      updateProgress();
+      submitButton.focus();
+    }
+
+    questions.forEach((question) => {
+      question.addEventListener("change", updateProgress);
+    });
+    drillList.addEventListener("click", updateProgress);
+    submitButton.addEventListener("click", submitQuiz);
+    retryButton.addEventListener("click", retryQuiz);
   </script>
 </body>
 </html>
