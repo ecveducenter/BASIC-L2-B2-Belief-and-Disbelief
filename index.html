@@ -378,7 +378,6 @@
 
     .quiz-actions {
       display: flex;
-      flex-wrap: wrap;
       justify-content: center;
       gap: 12px;
       margin-top: 6px;
@@ -408,6 +407,17 @@
 
     .quiz-button-secondary {
       background: var(--teal);
+    }
+
+    @media (max-width: 640px) {
+      .quiz-actions {
+        width: 100%;
+      }
+
+      .quiz-button {
+        flex: 1 1 130px;
+        padding-inline: 16px;
+      }
     }
 
     .question-result {
@@ -836,8 +846,8 @@
       <p class="quiz-progress" id="quiz-progress" aria-live="polite">Đã hoàn thành 0/30 câu.</p>
       <p class="quiz-result" id="quiz-result" aria-live="polite" hidden></p>
       <div class="quiz-actions">
-        <button class="quiz-button" id="submit-quiz" type="button" disabled>Nộp bài và chấm điểm</button>
-        <button class="quiz-button quiz-button-secondary" id="retry-quiz" type="button" hidden>Làm lại và xáo trộn câu hỏi</button>
+        <button class="quiz-button" id="submit-quiz" type="button" disabled>Nộp bài</button>
+        <button class="quiz-button quiz-button-secondary" id="retry-quiz" type="button" disabled>Làm lại</button>
       </div>
     </section>
   </main>
@@ -1241,7 +1251,9 @@
       const answered = answeredMultipleChoice + answeredDrills;
 
       quizProgress.textContent = `Đã hoàn thành ${answered}/${totalQuestions} câu.`;
-      submitButton.disabled = answered !== totalQuestions;
+      const incomplete = answered !== totalQuestions;
+      submitButton.disabled = incomplete;
+      retryButton.disabled = incomplete;
     }
 
     function setQuestionResult(question, correct, message) {
@@ -1293,14 +1305,13 @@
       quizResult.textContent = `Kết quả: ${score}/30`;
       quizResult.hidden = false;
       submitButton.disabled = true;
-      retryButton.hidden = false;
+      retryButton.disabled = false;
     }
 
     function retryQuiz() {
       quizSubmitted = false;
       quizResult.hidden = true;
       quizResult.textContent = "";
-      retryButton.hidden = true;
 
       shuffle(questions).forEach((question, index) => {
         sentenceList.append(question);
