@@ -56,12 +56,7 @@
     .brand-mark {
       width: 118px;
       height: 118px;
-      display: grid;
-      place-items: center;
-      border-radius: 50%;
-      background: var(--coral);
-      color: var(--teal-dark);
-      font: bold 82px/1 Georgia, "Times New Roman", serif;
+      object-fit: contain;
     }
 
     .brand-name,
@@ -555,7 +550,6 @@
       .brand-mark {
         width: 68px;
         height: 68px;
-        font-size: 48px;
       }
 
       .brand-name,
@@ -694,7 +688,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="#" aria-label="Basic English - đầu trang">
-      <span class="brand-mark" aria-hidden="true">B</span>
+      <img class="brand-mark" src="assets/ecv-edu-center-logo.png" alt="ECV Edu Center - Kết nối năm châu">
       <span class="brand-name">Basic<br>English</span>
     </a>
     <div class="lesson-label">Lesson 2 <span>/</span><br>Belief and Disbelief</div>
